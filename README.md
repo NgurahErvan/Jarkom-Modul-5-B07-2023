@@ -44,10 +44,13 @@
 ## Tahap Persiapan
 
 ## Syarat A
-
+Tugas pertama, buatlah peta wilayah sesuai yang diberikan pada soal
 ### Topologi VLSM
 
+<img width="576" alt="Rute" src="https://github.com/NgurahErvan/Jarkom-Modul-5-B07-2023/assets/114007640/51d2f24c-1a4d-49bd-a080-7c5c5de9b87a">
+
 ### Topologi GNS
+
 
 ## Syarat B
 ### Rute
