@@ -238,38 +238,290 @@ route add -net 0.0.0.0 netmask 0.0.0.0 gw 10.12.14.1
 
 ## Syarat D
 ### Konfigurasi DHCP Server
+
+```
+echo nameserver 192.168.122.1 > /etc/resolv.conf
+
+apt-get update
+apt-get install isc-dhcp-server -y
+dhcpd --version
+apt-get install netcat -y
+
+service isc-dhcp-server start
+
+echo '
+INTERFACES="eth0"
+' > /etc/default/isc-dhcp-server
+
+echo '
+option domain-name "example.org";
+option domain-name-servers ns1.example.org, ns2.example.org;
+
+default-lease-time 600;
+max-lease-time 7200;
+
+ddns-update-style none;
+
+subnet 10.12.14.128 netmask 255.255.255.252 {
+    option routers 10.12.14.129;
+}
+
+subnet 10.12.14.132 netmask 255.255.255.252 {
+}
+
+subnet 10.12.14.136 netmask 255.255.255.252 {
+    option routers 10.12.14.136;
+}
+
+subnet 10.12.14.140 netmask 255.255.255.252 {
+}
+
+subnet 10.12.14.144 netmask 255.255.255.252 {
+    option routers 10.12.14.145;
+}
+
+subnet 10.12.14.148 netmask 255.255.255.252 {
+    option routers 10.12.14.150;
+}
+
+subnet 10.12.12.0 netmask 255.255.254.0 {
+    range 10.12.12.2 10.12.13.1;
+    option routers 10.12.12.1;
+    option broadcast-address 10.12.13.255;
+    option domain-name-servers 10.12.14.134;
+    default-lease-time 720;
+    max-lease-time 5760;
+}
+
+subnet 10.12.14.0 netmask 255.255.255.128 {
+    range 10.12.14.4 10.12.14.67;
+    option routers 10.12.14.1;
+    option broadcast-address 10.12.14.127;
+    option domain-name-servers 10.12.14.134;
+    default-lease-time 720;
+    max-lease-time 5760;
+}
+
+subnet 10.12.0.0 netmask 255.255.248.0 {
+    range 10.12.0.2 10.12.4.4;
+    option routers 10.12.0.1;
+    option broadcast-address 10.12.7.255;
+    option domain-name-servers 10.12.14.134;
+    default-lease-time 720;
+    max-lease-time 5760;
+}
+
+subnet 10.12.8.0 netmask 255.255.252.0 {
+    range 10.12.8.3 10.12.10.5;
+    option routers 10.12.8.1;
+    option broadcast-address 10.12.11.255;
+    option domain-name-servers 10.12.14.134;
+    default-lease-time 720;
+    max-lease-time 5760;
+}
+' > /etc/dhcp/dhcpd.conf
+
+service isc-dhcp-server restart
+```
+
+Berikut merupakan konfigurasi dari revolte yang merupakan DHCP server yang berfungsi untuk menyetor ip dinamis kepada client yang mengininkan ip pada range tertentu, terdapat setting pada `/etc/dhcp/dhcpd.conf` pada 4 subnet yaitu subnet pada client yang menginginkan dinamis. kemudian sisa dari subnet yang terdapat sedikit setting merupakan jalur yang dilewati dhcp untuk menuju subnet yang diinginkan.
+
 ### Konfigurasi DHCP Relay
+
+```
+echo nameserver 192.168.122.1 > /etc/resolv.conf
+
+apt-get update
+apt-get install isc-dhcp-relay -y
+service isc-dhcp-relay start
+
+echo '
+SERVERS="10.12.14.130"
+INTERFACES="eth0 eth1 eth2"
+OPTIONS=""
+' > /etc/default/isc-dhcp-relay
+
+echo '
+net.ipv4.ip_forward=1
+' > /etc/sysctl.conf
+
+service isc-dhcp-relay restart
+```
+
+DHCP relay dubutuhkan untuk melakukan forward ip dinamis yang sampai papda router, router tersebut harus di install DHCP relay untuk meneruskan ip dinamis ke subnet yang diinginkan DHCP. setting ini dilakukan di semua router, kemudian melakukan setting pada `/etc/sysctl.conf` untuk konfigurasi, untuk INTERFACES dapat disesuaikan dengan ada berapa jalur yang terhubung ke router tersebut, untuk SERVERS dapat diisi dengan ip DHCP Server.
+
 ### Konfigurasi DNS Server
+
+```
+echo '
+nameserver 192.168.122.1
+' > /etc/resolv.conf
+apt-get update
+apt-get install bind9 -y
+cp ~/named.conf.options /etc/bind/
+service bind9 restart
+apt-get install netcat -y
+
+echo '
+options {
+        directory "/var/cache/bind";
+
+        forwarders {
+                192.168.122.1;
+        };
+
+        auth-nxdomain no;
+        listen-on-v6 { any; };
+};
+' > /etc/bind/named.conf.options
+```
+
+pada DNS Server kita melakukan konfigurasi untuk melakukan forward menuju jaringan internet luar pada `/etc/bind/named.conf.options`, apabila dhcp sudah mendapatkan nameserver yang dimana sudah dilakukan set untuk melakukan akses ke DNS server, kemudian DNS server akan meneruskan ke jaringan luar agar dapat melakukan konfigurasi seperti update dan download yang dibutuhkan pada client.
+
 ### Konfigurasi Web Server
+
+```
+echo nameserver 192.168.122.1 > /etc/resolv.conf
+
+apt-get update
+apt-get install netcat -y
+```
+
+Hanya sedikit yang dibutuhkan pada Web Server, karena tidak dilakukan konfigurasi php atau laravel, sehingga hanya dilakukan install `netcat` yang digunakan untuk testing.
+
 ### Konfigurasi Client
 
+```
+echo nameserver 192.168.122.1 > /etc/resolv.conf
+
+apt-get update
+apt-get install netcat -y
+```
+
+Pada Client juga sedikit melakukan konfigurasi karena hanya mendapatkan dhcp, dan melakukan testing sama seperti pada web server menggunakan `netcat`.
+
 ## Tahap Persoalan
+
 Setelah mempersiapkan semuanya, kami siap melibas habis persoalan dibawah
+
 ## Soal 1
 ### Pertanyaan
+
+Agar topologi yang kalian buat dapat mengakses keluar, kalian diminta untuk mengkonfigurasi Aura menggunakan iptables, tetapi tidak ingin menggunakan MASQUERADE.
+
 ### Script
+
+```
+ETH0_IP=$(ip -4 addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to-source $ETH0_IP
+```
+
+Pada kode tersebut menyimpan ip eth0 ke dalam variabel `ETH0_IP` kemudian menjalankan iptables sesuai variable tersebut, sehingga kode tidak akan menggunaakn `MASQUERADE`. sehingga semua node dapat terhubung ke dalam internet
+
 ### Testing
+
+percobaan sederhana kita melakukan `ping google.com` pada aura, apabila berhasil maka konfigurasi iptables telah berhasil.
+
+![img](Images/1-1.png)
 
 ## Soal 2
 ### Pertanyaan
+
+Kalian diminta untuk melakukan drop semua TCP dan UDP kecuali port 8080 pada TCP.
+
 ### Script
+
+```
+# Drop semua koneksi UDP
+iptables -A INPUT -p udp -j DROP
+
+# Drop semua koneksi TCP kecuali port 8080
+iptables -A INPUT -p tcp ! --dport 8080 -j DROP
+
+# testing
+nc -l -p 8080
+
+# testing client
+nc ip_port 8080
+```
+
+pada soal ini kita diharuskan melakukan DROP pada semua request TCP dan UDP kecuali TCP pada port 8080, sehingga kode menggunakan bneberapa baris tersebut.
+
 ### Testing
+
+kita melakukan percobaan antar client berikut.
+
+- percobaan pertama apabila menggunakan port 80 yang di DROP
+
+![img](Images/2-1.png)
+
+- percobaan kedua apabila menggunakan port 8080 TCP yang di ACCEPT
+
+![img](Images/2-2.png)
 
 ## Soal 3
 ### Pertanyaan
+
+Kepala Suku North Area meminta kalian untuk membatasi DHCP dan DNS Server hanya dapat dilakukan ping oleh maksimal 3 device secara bersamaan, selebihnya akan di drop.
+
 ### Script
+
+```
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p icmp -m connlimit --connlimit-above 3 --connlimit-mask 0 -j DROP
+```
+
+Untuk kasus ini mengharuskan kita membatasi ping dari 3 device secara bersamaan, jadi kita harus melakukan ping dengan 4 device sekaligus.
+
 ### Testing
+
+Kita melakukan testing kepada DHCP server, maka berikut hasil dari ping yang dihasilkan.
+
+![img](Images/3-1.png)
 
 ## Soal 4
 ### Pertanyaan
+
+Lakukan pembatasan sehingga koneksi SSH pada Web Server hanya dapat dilakukan oleh masyarakat yang berada pada GrobeForest.
+
 ### Script
+
+```
+# Allow SSH from a specific IP range
+iptables -A INPUT -p tcp --dport 22 -m iprange --src-range 10.12.8.3-10.12.10.5 -j ACCEPT
+
+# Drop SSH from all other sources
+iptables -A INPUT -p tcp --dport 22 -j DROP
+
+# testing webserver
+nc -l -p 22
+
+# testing client (grobeforest)
+nc 10.12.14.142 22
+```
+
+kita melakukan konfigurasi pada Web Server untuk membatasi ssh hanya pada grobeforest, maka menggunakan specific range karena pada GrobeForest memiliki ip dhcp yang dimana berubah ubah, jadi kita menggunakan ip range agar mencakup range subnet tersebut. kemudian selain itu di drop.
+
 ### Testing
+
+Kita melakukan testing kepada 2 client subnet
+
+- TurkRegion
+
+![img](Images/4-1.png)
+
+- GrobeForest
+
+![img](Images/4-1.png)
 
 ## Soal 5
 ### Pertanyaan
 Selain itu, akses menuju WebServer hanya diperbolehkan saat jam kerja yaitu Senin-Jumat pada pukul 08.00-16.00.
 ### Script
+
 jalankan script dibawah pada masing masing webserver agar, web server hanya dapat di akses saat jam kerja yaitu Senin-Jumat pada pukul 08.00-16.00.
+
 ```
 # Allow HTTP access only outside restricted hours (Monday-Thursday 12:00-13:00, Friday 11:00-13:00)
 iptables -A INPUT -p tcp --dport 80 -m time --timestart 07:00 --timestop 11:59 --weekdays Mon,Tue,Wed,Thu -j ACCEPT
@@ -289,7 +541,14 @@ dibawah ini merupakan hasil `iptables -L` setelah kita menjalankan script diatas
 
 <img width="710" alt="image" src="https://github.com/NgurahErvan/Jarkom-Modul-5-B07-2023/assets/114007640/06dfa1e1-4993-460a-8cea-52a42d94878c">
 
-setelah itu kita bisa mencoba melakukan testing dengan mengubah waktu pada node sein dengan sintaks berikut:
+setelah itu kita bisa mencoba melakukan testing dengan mengubah waktu pada node sein dengan sintaks berikut, dapat merubah tanggal dan juga jam bahkan sampai detik dengan format
+- 12: Bulan
+- 13: Tanggal
+- 14: Tanggal
+- 002023: Tahun
+- .00: Bagian desimal mungkin mewakili fraksi detik atau milidetik
+
+sehingga seperti berikut :
 ```
 date 121314002023.00
 ```
